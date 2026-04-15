@@ -1,61 +1,94 @@
 # PumpFun Agent
 
-Ce dépôt contient une base de travail pour construire un robot de trading automatique orienté Pump.fun (Solana).
+Ce dépôt fournit une base **exécutable** pour un bot Pump.fun orienté production :
+- mode **paper trading** avec suivi des positions,
+- mode **live** protégé (garde-fous + validation config),
+- pipeline décisionnel sélection/entrée/sortie,
+- persistance SQLite des observations et décisions,
+- architecture prête à brancher un exécuteur DEX réel.
 
-## Objectif
+## Architecture actuelle
 
-Créer un système **data-driven** qui :
-1. Observe les nouveaux tokens Pump.fun.
-2. Enregistre les 10 premières minutes de vie (événements + indicateurs toutes les 5 secondes).
-3. Apprend des patterns de hausse pour filtrer les opportunités.
-4. Détecte le meilleur timing d'entrée.
-5. Gère la sortie (hold/sell) en temps réel.
-6. Réentraîne en continu pour s'adapter aux changements de marché.
+- `runtime.py`
+  - `MockMarketDataConnector` (démo/paper)
+  - `SolanaRpcMarketDataConnector` (validation RPC + adaptateur à compléter pour flux Pump.fun)
+- `pipeline.py`
+  - `SelectionModel`, `EntryModel`, `PositionPolicy`
+- `execution.py`
+  - `PaperBroker` (état cash + positions + PnL réalisé)
+  - `LiveBroker` (validation sécurité + hook `_send_order` à implémenter pour DEX)
+- `risk.py`
+  - règles globales: taille max, perte max journalière, positions max
+- `storage.py`
+  - stockage SQLite (`observations`, `decisions`)
+- `engine.py`
+  - orchestration complète (data → décision → exécution → stockage)
 
-## Architecture proposée
+## Installation
 
-Le système est découpé en 5 sous-systèmes :
-
-- **Ingestion temps réel**
-  - Flux des nouveaux tokens.
-  - Flux transactions (swaps, buys/sells, wallet uniques, tailles de trade).
-  - Snapshot market cap et prix.
-
-- **Stockage et feature store**
-  - Table `tokens`
-  - Table `events`
-  - Table `candles_5s`
-  - Table `features_10m`
-  - Table `trades`
-
-- **Recherche de signaux (offline)**
-  - Construction du dataset labellisé (hausse significative vs non).
-  - Feature engineering (créateur, distribution des wallets, pression acheteuse, volatilité, momentum).
-  - Entraînement modèle de sélection.
-  - Entraînement modèle de timing d'entrée.
-
-- **Exécution en réel**
-  - Pipeline à 2 étages :
-    1. `SelectionModel` (filtre token)
-    2. `EntryModel` (déclenchement achat)
-  - Risk management : taille de position, max exposition, stop-loss, take-profit, time-stop.
-
-- **Boucle d'apprentissage continue**
-  - Logging de tous les trades.
-  - Backtest périodique.
-  - Réentraînement planifié.
-  - Monitoring de dérive (drift).
-
-## Notes importantes
-
-- Ce dépôt fournit une **ossature technique** et des objets de domaine pour implémenter la logique.
-- Le trading comporte un risque élevé de perte totale du capital.
-- Ne jamais utiliser une clé wallet de production sans environnement sécurisé (vault, permissions minimales, rotation).
-
-## Démarrage rapide
+### Linux/macOS
 
 ```bash
-python -m compileall src
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip pytest
 ```
 
-Puis implémenter vos connecteurs Pump.fun / Solana dans `src/pumpfun_bot`.
+### Windows (cmd)
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -U pip pytest
+```
+
+## Vérification
+
+```bash
+PYTHONPATH=src pytest
+```
+
+## Lancement rapide (paper)
+
+```bash
+PYTHONPATH=src python -m pumpfun_bot.main --mode paper --iterations 20 --trade-size-usd 50 --db-path ./data/pumpfun.sqlite
+```
+
+## Lancement live (sécurisé)
+
+Variables minimales :
+
+```bash
+export PUMPFUN_MODE=live
+export PUMPFUN_ENABLE_LIVE_TRADING=true
+export PUMPFUN_WALLET_PUBLIC_KEY=<YOUR_PUBLIC_KEY>
+export PUMPFUN_PRIVATE_KEY=<YOUR_PRIVATE_KEY>
+export PUMPFUN_RPC_ENDPOINT=https://api.mainnet-beta.solana.com
+```
+
+Puis :
+
+```bash
+PYTHONPATH=src python -m pumpfun_bot.main --mode live --enable-live-trading --iterations 100 --token-mint <TOKEN_MINT>
+```
+
+## Variables d'environnement
+
+- `PUMPFUN_MODE` = `paper` | `live`
+- `PUMPFUN_ENABLE_LIVE_TRADING` = `true/false`
+- `PUMPFUN_RPC_ENDPOINT`
+- `PUMPFUN_RPC_COMMITMENT`
+- `PUMPFUN_WALLET_PUBLIC_KEY`
+- `PUMPFUN_PRIVATE_KEY` (ou variable custom avec `PUMPFUN_WALLET_PRIVATE_KEY_ENV`)
+- `PUMPFUN_DB_PATH`
+- `PUMPFUN_TRADE_SIZE_USD`
+- `PUMPFUN_MAX_POSITION_USD`
+- `PUMPFUN_MAX_DAILY_LOSS_USD`
+- `PUMPFUN_MAX_OPEN_POSITIONS`
+- `PUMPFUN_TOKEN_MINT`
+- `PUMPFUN_ITERATIONS`
+- `PUMPFUN_LOOP_DELAY_SECONDS`
+
+## Dernière étape avant vraie prod
+
+Pour un live complet, implémenter l'adaptateur DEX dans `LiveBroker._send_order()` pour router/signature les ordres sur votre stack (Jupiter, Raydium, etc.).
