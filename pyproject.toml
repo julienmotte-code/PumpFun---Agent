@@ -8,6 +8,9 @@ version = "0.1.0"
 description = "Scaffold for a Pump.fun automated trading bot"
 requires-python = ">=3.11"
 
+[project.scripts]
+pumpfun-bot = "pumpfun_bot.main:main"
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 addopts = "-q"
