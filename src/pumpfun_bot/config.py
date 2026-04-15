@@ -32,6 +32,8 @@ class BotConfig:
     token_mint: str = "demo-mint"
     enable_live_trading: bool = False
     db_path: str = "pumpfun_bot.sqlite"
+    market_data_url: str = ""
+    executor_url: str = ""
     rpc: RpcConfig = field(default_factory=lambda: RpcConfig(endpoint="https://api.mainnet-beta.solana.com"))
     wallet: WalletConfig = field(default_factory=lambda: WalletConfig(public_key=""))
     risk: RiskConfig = field(default_factory=RiskConfig)
@@ -66,6 +68,8 @@ def load_config_from_env() -> BotConfig:
         token_mint=os.getenv("PUMPFUN_TOKEN_MINT", "demo-mint"),
         enable_live_trading=_as_bool(os.getenv("PUMPFUN_ENABLE_LIVE_TRADING"), False),
         db_path=os.getenv("PUMPFUN_DB_PATH", "pumpfun_bot.sqlite"),
+        market_data_url=os.getenv("PUMPFUN_MARKETDATA_URL", ""),
+        executor_url=os.getenv("PUMPFUN_EXECUTOR_URL", ""),
         rpc=RpcConfig(endpoint=endpoint, commitment=commitment),
         wallet=WalletConfig(
             public_key=os.getenv("PUMPFUN_WALLET_PUBLIC_KEY", ""),
@@ -84,6 +88,13 @@ def load_config_from_env() -> BotConfig:
 def validate_config(cfg: BotConfig) -> BotConfig:
     if cfg.mode not in {"paper", "live"}:
         raise ConfigError("mode must be paper/live")
-    if cfg.mode == "live" and not cfg.wallet.public_key:
-        raise ConfigError("PUMPFUN_WALLET_PUBLIC_KEY is required in live mode")
+    if cfg.mode == "live":
+        if not cfg.enable_live_trading:
+            raise ConfigError("Live mode requires PUMPFUN_ENABLE_LIVE_TRADING=true or --enable-live-trading")
+        if not cfg.wallet.public_key:
+            raise ConfigError("PUMPFUN_WALLET_PUBLIC_KEY is required in live mode")
+        if not cfg.market_data_url:
+            raise ConfigError("PUMPFUN_MARKETDATA_URL is required in live mode")
+        if not cfg.executor_url:
+            raise ConfigError("PUMPFUN_EXECUTOR_URL is required in live mode")
     return cfg

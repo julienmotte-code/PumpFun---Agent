@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
+from urllib import request
 
 
 class BrokerError(RuntimeError):
@@ -75,13 +77,10 @@ class PaperBroker(Broker):
 
 @dataclass(slots=True)
 class LiveBroker(Broker):
-    """Exécuteur live: sécurise les préconditions et expose des hooks d'implémentation.
-
-    IMPORTANT: cette classe fait la validation de sécurité, mais l'intégration DEX
-    spécifique (Jupiter/Raydium/...) doit être implémentée dans `_send_order`.
-    """
+    """Exécuteur live vers un service HTTP d'exécution (webhook/adaptateur DEX)."""
 
     wallet_public_key: str
+    executor_url: str
     private_key_env: str = "PUMPFUN_PRIVATE_KEY"
     enabled: bool = False
 
@@ -93,15 +92,30 @@ class LiveBroker(Broker):
             )
         if not self.wallet_public_key:
             raise BrokerError("Wallet public key missing")
+        if not self.executor_url:
+            raise BrokerError("Missing executor URL")
         if not os.getenv(self.private_key_env):
             raise BrokerError(f"Missing private key in env var: {self.private_key_env}")
 
     def _send_order(self, side: str, mint: str, notional: float, price: float) -> str:
         self.validate()
-        return (
-            f"LIVE {side} placeholder sent for mint={mint} notional=${notional:.2f} "
-            f"at reference price={price:.8f}. Implement DEX adapter in _send_order()."
+        payload = {
+            "side": side,
+            "mint": mint,
+            "notional": notional,
+            "reference_price": price,
+            "wallet_public_key": self.wallet_public_key,
+            "private_key_env": self.private_key_env,
+        }
+        req = request.Request(
+            self.executor_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
+        with request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+        return f"LIVE {side} sent to executor ({self.executor_url}): {body[:240]}"
 
     def buy(self, mint: str, notional: float, price: float) -> str:
         return self._send_order("BUY", mint, notional, price)

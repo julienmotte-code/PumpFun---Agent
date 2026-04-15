@@ -8,7 +8,7 @@ from .execution import Broker, LiveBroker, PaperBroker
 from .models import TradeDecision
 from .pipeline import EntryModel, PositionPolicy, SelectionModel, TradingPipeline
 from .risk import RiskManager
-from .runtime import MarketDataConnector, MockMarketDataConnector, SolanaRpcMarketDataConnector
+from .runtime import HttpMarketDataConnector, MarketDataConnector, MockMarketDataConnector, SolanaRpcMarketDataConnector
 from .storage import SqliteStorage
 
 
@@ -87,9 +87,10 @@ def build_dependencies(config: BotConfig) -> EngineDependencies:
         connector: MarketDataConnector = MockMarketDataConnector(seed=42)
         broker: Broker = PaperBroker(initial_cash=1000.0)
     else:
-        connector = SolanaRpcMarketDataConnector(config.rpc)
+        connector = HttpMarketDataConnector(config.market_data_url) if config.market_data_url else SolanaRpcMarketDataConnector(config.rpc)
         live = LiveBroker(
             wallet_public_key=config.wallet.public_key,
+            executor_url=config.executor_url,
             private_key_env=config.wallet.private_key_env,
             enabled=config.enable_live_trading,
         )

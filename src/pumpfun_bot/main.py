@@ -14,6 +14,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trade-size-usd", type=float, default=None)
     parser.add_argument("--token-mint", type=str, default=None)
     parser.add_argument("--db-path", type=str, default=None)
+    parser.add_argument("--market-data-url", type=str, default=None)
+    parser.add_argument("--executor-url", type=str, default=None)
     parser.add_argument("--enable-live-trading", action="store_true")
     return parser.parse_args()
 
@@ -31,6 +33,10 @@ def merge_cli_overrides(base: BotConfig, args: argparse.Namespace) -> BotConfig:
         base.token_mint = args.token_mint
     if args.db_path is not None:
         base.db_path = args.db_path
+    if args.market_data_url is not None:
+        base.market_data_url = args.market_data_url
+    if args.executor_url is not None:
+        base.executor_url = args.executor_url
     if args.enable_live_trading:
         base.enable_live_trading = True
     return base

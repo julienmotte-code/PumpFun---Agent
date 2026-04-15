@@ -6,7 +6,7 @@ import pytest
 
 from pumpfun_bot.config import BotConfig, load_config_from_env
 from pumpfun_bot.engine import EngineDependencies, TradingEngine, build_dependencies
-from pumpfun_bot.execution import PaperBroker
+from pumpfun_bot.execution import LiveBroker, PaperBroker
 
 
 def test_paper_broker_buy_and_sell_tracks_pnl() -> None:
@@ -22,9 +22,12 @@ def test_paper_broker_buy_and_sell_tracks_pnl() -> None:
     assert broker.cash == pytest.approx(110)
 
 
-def test_live_mode_env_requires_wallet(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_mode_env_requires_core_fields(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PUMPFUN_MODE", "live")
+    monkeypatch.setenv("PUMPFUN_ENABLE_LIVE_TRADING", "true")
     monkeypatch.delenv("PUMPFUN_WALLET_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("PUMPFUN_MARKETDATA_URL", raising=False)
+    monkeypatch.delenv("PUMPFUN_EXECUTOR_URL", raising=False)
     with pytest.raises(ValueError, match="WALLET_PUBLIC_KEY"):
         load_config_from_env()
 
@@ -55,3 +58,10 @@ def test_engine_handles_connector_failure(tmp_path) -> None:
     decision, message = engine.run_once("abc")
     assert decision.action == "SKIP"
     assert "connector" in message.lower()
+
+
+def test_live_broker_requires_executor_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PUMPFUN_PRIVATE_KEY", "abc")
+    broker = LiveBroker(wallet_public_key="pub", executor_url="", enabled=True)
+    with pytest.raises(RuntimeError, match="executor URL"):
+        broker.validate()
