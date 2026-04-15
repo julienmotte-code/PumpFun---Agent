@@ -6,7 +6,7 @@ import pytest
 
 from pumpfun_bot.config import BotConfig, load_config_from_env
 from pumpfun_bot.engine import EngineDependencies, TradingEngine, build_dependencies
-from pumpfun_bot.execution import LiveBroker, PaperBroker
+from pumpfun_bot.execution import BrokerError, LiveBroker, PaperBroker
 
 
 def test_paper_broker_buy_and_sell_tracks_pnl() -> None:
@@ -65,3 +65,10 @@ def test_live_broker_requires_executor_url(monkeypatch: pytest.MonkeyPatch) -> N
     broker = LiveBroker(wallet_public_key="pub", executor_url="", enabled=True)
     with pytest.raises(RuntimeError, match="executor URL"):
         broker.validate()
+
+
+def test_live_broker_wraps_executor_network_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PUMPFUN_PRIVATE_KEY", "abc")
+    broker = LiveBroker(wallet_public_key="pub", executor_url="https://example.invalid/order", enabled=True)
+    with pytest.raises(BrokerError, match="Executor request failed"):
+        broker.buy(mint="abc", notional=10, price=1)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from urllib.error import URLError
 from urllib import request
 
 
@@ -113,8 +114,11 @@ class LiveBroker(Broker):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with request.urlopen(req, timeout=10) as resp:
-            body = resp.read().decode("utf-8")
+        try:
+            with request.urlopen(req, timeout=10) as resp:
+                body = resp.read().decode("utf-8")
+        except URLError as exc:
+            raise BrokerError(f"Executor request failed: {exc}") from exc
         return f"LIVE {side} sent to executor ({self.executor_url}): {body[:240]}"
 
     def buy(self, mint: str, notional: float, price: float) -> str:

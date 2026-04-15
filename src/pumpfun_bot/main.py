@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--market-data-url", type=str, default=None)
     parser.add_argument("--executor-url", type=str, default=None)
     parser.add_argument("--enable-live-trading", action="store_true")
+    parser.add_argument("--validate-only", action="store_true", help="Validate configuration and exit")
     return parser.parse_args()
 
 
@@ -48,6 +49,10 @@ def main() -> None:
         config = validate_config(merge_cli_overrides(load_config_from_env(), args))
     except ConfigError as exc:
         raise SystemExit(f"Configuration error: {exc}") from exc
+
+    if args.validate_only:
+        print("Configuration OK")
+        return
 
     deps = build_dependencies(config)
     engine = TradingEngine(config=config, deps=deps)

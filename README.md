@@ -74,6 +74,12 @@ Puis :
 PYTHONPATH=src python -m pumpfun_bot.main --mode live --enable-live-trading --iterations 100 --token-mint <TOKEN_MINT>
 ```
 
+Validation de configuration (sans exécuter la boucle) :
+
+```bash
+PYTHONPATH=src python -m pumpfun_bot.main --mode live --enable-live-trading --validate-only
+```
+
 ## Contrat API requis
 
 ### Market data API (`PUMPFUN_MARKETDATA_URL`)

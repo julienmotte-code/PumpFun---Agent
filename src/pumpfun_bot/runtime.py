@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from random import Random
 from typing import Protocol
+from urllib.error import URLError
 from urllib import parse, request
 
 from .config import RpcConfig
@@ -78,8 +79,11 @@ class HttpMarketDataConnector:
     def _fetch_json(self, mint: str) -> dict:
         url = f"{self.base_url}?{parse.urlencode({'mint': mint})}"
         req = request.Request(url, method="GET")
-        with request.urlopen(req, timeout=8) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        try:
+            with request.urlopen(req, timeout=8) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except URLError as exc:
+            raise RuntimeError(f"market data request failed: {exc}") from exc
 
     def next_observation(self, mint: str) -> MarketObservation:
         payload = self._fetch_json(mint)
