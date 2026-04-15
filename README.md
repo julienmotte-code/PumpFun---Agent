@@ -54,8 +54,49 @@ Le système est découpé en 5 sous-systèmes :
 
 ## Démarrage rapide
 
+### 1) Préparer l'environnement
+
+Linux/macOS :
+
 ```bash
-python -m compileall src
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-Puis implémenter vos connecteurs Pump.fun / Solana dans `src/pumpfun_bot`.
+Windows (cmd.exe) :
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Installer les dépendances de base et le package en mode editable :
+
+```bash
+python -m pip install -U pip pytest
+python -m pip install -e .
+```
+
+### 2) Vérifier le projet
+
+```bash
+python -m compileall src
+pytest
+```
+
+### 3) Lancer le bot en mode papier (safe)
+
+```bash
+pumpfun-bot --mode paper --iterations 15 --position-size-usd 50
+```
+
+Ce mode n'utilise pas de wallet réel et simule les exécutions.
+
+### 4) Lancer le mode live (placeholder sécurisé)
+
+```bash
+pumpfun-bot --mode live --iterations 5 --enable-live-trading
+```
+
+- Sans `--enable-live-trading`, le mode live est bloqué volontairement.
+- Le branchement aux API Solana / DEX reste à implémenter dans `src/pumpfun_bot/execution.py`.
